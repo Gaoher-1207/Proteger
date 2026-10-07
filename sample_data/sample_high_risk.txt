@@ -1,0 +1,6 @@
+FAKE / DEMONSTRATION DATA ONLY — all values are invented and unusable.
+Owner: demo.person@example.test
+API_KEY=fake_demo_secret_key_ABC123456789
+SECRET_TOKEN=demo_token_value_12345678
+password=demonstration-only-password
+Card-like test pattern: 4111 1111 1111 1111

@@ -1,0 +1,6 @@
+FAKE / DEMONSTRATION DATA ONLY — all values are invented.
+Contact: test@example.com
+Phone: 9876543210
+Aadhaar-like test value: 1234 5678 9012
+API_KEY=fake_demo_key_1234567890
+password: not-a-real-password-123
