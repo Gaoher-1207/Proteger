@@ -5,7 +5,7 @@ import json
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from app.config import MAX_FILE_BYTES
+from app.config import MAX_FILE_BYTES, TEMP_DIR
 from app.services.scan_service import create_scan, get_scan, get_findings_page
 from app.database.database import connect
 from app.services.extractors import extract_content
@@ -27,7 +27,8 @@ async def _read_upload(file):
     name=safe_filename(file.filename)
     temp_path=None
     try:
-        with tempfile.NamedTemporaryFile(prefix="proteger-", suffix=".upload", delete=False) as tmp:
+        TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(prefix="proteger-", suffix=".upload", dir=TEMP_DIR, delete=False) as tmp:
             temp_path=tmp.name
             size=0
             while True:
@@ -37,7 +38,7 @@ async def _read_upload(file):
                 if size>MAX_FILE_BYTES: raise HTTPException(413,f"File exceeds the configured {MAX_FILE_BYTES // (1024*1024)} MB limit")
                 tmp.write(chunk)
         if size==0: raise HTTPException(400,"File is empty")
-        raw=Path(temp_path).read_bytes()
+        raw=await asyncio.to_thread(Path(temp_path).read_bytes)
         return name,raw,file.content_type or ""
     finally:
         await file.close()
@@ -49,9 +50,9 @@ async def _read_upload(file):
 async def scan_file(file: UploadFile = File(...)):
     try:
         name,raw,supplied_mime=await _read_upload(file)
-        extracted=extract_content(raw,name,supplied_mime)
+        extracted=await asyncio.to_thread(extract_content,raw,name,supplied_mime)
         metadata={"file_type":extracted.file_type,"mime_type":extracted.mime_type,"analysis_method":extracted.method,"extraction_status":extracted.status}
-        result=create_scan(extracted.text,name,metadata)
+        result=await asyncio.to_thread(create_scan,extracted.text,name,metadata)
         result["recommendations"]=file_recommendations(result["findings"],extracted.status)
         return result
     except HTTPException: raise

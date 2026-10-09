@@ -1,5 +1,6 @@
 import React,{useEffect,useState}from'react';
-const API='http://127.0.0.1:8000/api';
+const API_BASE=(import.meta.env.VITE_API_BASE_URL??(import.meta.env.DEV?'http://127.0.0.1:8000':'')).replace(/\/$/,'');
+const API=`${API_BASE}/api`;
 async function request(path,options={}){const r=await fetch(`${API}${path}`,options);const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{d={detail:raw||`HTTP ${r.status}`}}if(!r.ok)throw Error(d.detail||`HTTP ${r.status}`);return d}
 async function streamFileScan(file,onStage,timeoutMs=300000){
   const form=new FormData();form.append('file',file);
@@ -49,7 +50,7 @@ async function streamFileScan(file,onStage,timeoutMs=300000){
   }
 }
 export default function App(){const [page,setPage]=useState('Dashboard'),[text,setText]=useState(''),[file,setFile]=useState(null),[result,setResult]=useState(null),[history,setHistory]=useState([]),[dash,setDash]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[analysisStage,setAnalysisStage]=useState(''),[detectedType,setDetectedType]=useState(''),[findingOffset,setFindingOffset]=useState(0),[loadingFindings,setLoadingFindings]=useState(false);
-async function refresh(){try{await request('/health');const [h,d]=await Promise.all([request('/scans'),request('/dashboard')]);setHistory(h);setDash(d);setError('')}catch(e){setError(e instanceof TypeError?'Backend unavailable at http://127.0.0.1:8000/api/health. Check that FastAPI is running and that this page is served from localhost:5173 or 127.0.0.1:5173.':`Backend responded, but dashboard data could not be loaded: ${e.message}`)}}useEffect(()=>{refresh()},[]);
+async function refresh(){try{await request('/health');const [h,d]=await Promise.all([request('/scans'),request('/dashboard')]);setHistory(h);setDash(d);setError('')}catch(e){setError(e instanceof TypeError?`Backend unavailable at ${API}/health. Check the API URL, that FastAPI is running, and that this frontend origin is allowed by CORS.`:`Backend responded, but dashboard data could not be loaded: ${e.message}`)}}useEffect(()=>{refresh()},[]);
 async function scan(){setBusy(true);setError('');setAnalysisStage(file?'Uploading':'Analyzing');setDetectedType('');setFindingOffset(0);try{const d=file?await streamFileScan(file,(stage,type,mime)=>{setAnalysisStage(current=>current===stage?current:stage);if(type)setDetectedType(`${type} · ${mime}`)}):await request('/scan/text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});setAnalysisStage('Complete');setResult(d);setPage('Results');setFile(null);setText('');await refresh()}catch(e){setError(e.message);setAnalysisStage('Failed')}finally{setBusy(false)}}
 async function openScan(id){try{setFindingOffset(0);setResult(await request('/scans/'+id));setPage('Results')}catch(e){setError(e.message)}}
 async function pageFindings(direction){if(!result?.id||loadingFindings)return;const pageSize=result.findings_page_size||50;const next=Math.max(0,findingOffset+direction*pageSize);setLoadingFindings(true);try{const pageData=await request(`/scans/${result.id}/findings?offset=${next}&limit=${pageSize}`);setResult(current=>({...current,findings:pageData.findings}));setFindingOffset(next)}catch(e){setError(`Could not load findings: ${e.message}`)}finally{setLoadingFindings(false)}}

@@ -4,5 +4,12 @@ backend/.venv/
 __pycache__/
 *.py[cod]
 database/*.db
+database/*.db-*
+database/*.sqlite*
 core_engine/build/
 .pytest_cache/
+.pytest-cache/
+.pytest-tmp/
+.env
+.env.*
+!.env.example
